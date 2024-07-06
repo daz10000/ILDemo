@@ -69,12 +69,10 @@ open IL.Ast
 [<EntryPoint>]
 let main argv =
     printfn "Build a simple program"
-    // TypeSpec * Identifier * Parameters * CompoundStatement
+
+    // pieces needed for a main function
+    // params, localdefs, statements
     let parameters : Parameters = [ (ScalarVariableDeclaration(Int, "a")); (ScalarVariableDeclaration(Int, "b")) ]
-
-    // and CompoundStatement = LocalDeclarations * Statement list
-
-    // and LocalDeclarations = VariableDeclaration list
     let localDefs : LocalDeclarations = [ ScalarVariableDeclaration(Int, "c")]
     let mainStatements : Statement list = [
         // a+b
@@ -107,25 +105,27 @@ let main argv =
         )
 
         // return statement
-        // ReturnStatement(Some(IdentifierExpression(vRef)))
         let e3 = IdentifierExpression({Identifier = "c"})
         ReturnStatement (Some e3)
     ]
     let mainDecl = FunctionDeclaration(Int, "main", parameters, (localDefs, mainStatements))
 
+    // Overall program is just our main for now
     let program : Declaration list = [
         mainDecl
     ]
 
+    // Incantations to analyze, build and emit the IL code
     let sa = SemanticAnalysis.analyze program
     let builder = ILBuilder(sa)
     let theClass = builder.BuildClass program
 
     // emit the symbolic source
+    // This dumps the human readable IL code
     let ilSrc = theClass.ToString()
     printfn $"IL source: {ilSrc}"
 
-    // emit the IL code
+    // emit the IL code to a DLL
     let assemblyName = "DemoAssembly"
     let assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(AssemblyName(assemblyName), AssemblyBuilderAccess.Run)
     let moduleBuilder = assemblyBuilder.DefineDynamicModule(assemblyName)
@@ -133,7 +133,9 @@ let main argv =
     let (compiledType, entryPoint) = codeGen.GenerateType()
     let instance = Activator.CreateInstance(compiledType)
 
+    // ------------------------------------------------------
     // call entry point and pass in arguments
+    // ------------------------------------------------------
     let result = entryPoint.Invoke(instance, [| box 1; box 2 |])
     // show result
     printfn $"Result: {result}"
