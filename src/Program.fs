@@ -13,7 +13,10 @@
 open System
 open System.Reflection.Emit
 open System.Reflection
+open IL
 
+(*
+// simple standalone function to emit IL code
 let root = "c:/extproj/IL/emitted"
 let emitAssembly (assemblyName:string) (assemblyBuilder:AssemblyBuilder) =
 
@@ -54,10 +57,84 @@ let emitAssembly (assemblyName:string) (assemblyBuilder:AssemblyBuilder) =
 
     // (t,main)
 
-
-[<EntryPoint>]
-let main argv =
+let main1 argv =
     let assemblyName = "DemoAssembly"
     let assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(AssemblyName(assemblyName), AssemblyBuilderAccess.Run)
     emitAssembly assemblyName assemblyBuilder
+    0
+*)
+
+open IL.Ast
+
+[<EntryPoint>]
+let main argv =
+    printfn "Build a simple program"
+    // TypeSpec * Identifier * Parameters * CompoundStatement
+    let parameters : Parameters = [ (ScalarVariableDeclaration(Int, "a")); (ScalarVariableDeclaration(Int, "b")) ]
+
+    // and CompoundStatement = LocalDeclarations * Statement list
+
+    // and LocalDeclarations = VariableDeclaration list
+    let localDefs : LocalDeclarations = [ ScalarVariableDeclaration(Int, "c")]
+    let mainStatements : Statement list = [
+        // a+b
+        let e =
+                BinaryExpression(
+                    IdentifierExpression(
+                        {Identifier = "a"}),
+                    Add,
+                    IdentifierExpression({Identifier = "b"})
+                )
+        let vRef = {Identifier = "c"}
+        // c = a + b
+        let e2 = Expression(ScalarAssignmentExpression(vRef, e))
+        ExpressionStatement(e2)
+
+        // c = c * 2
+        ExpressionStatement(
+            Expression(
+                ScalarAssignmentExpression(
+                    {Identifier = "c"},
+                    BinaryExpression(
+                        IdentifierExpression({Identifier = "c"}),
+                        Multiply,
+                        LiteralExpression(
+                            Literal.IntLiteral 2
+                        )
+                    )
+                )
+            )
+        )
+
+        // return statement
+        // ReturnStatement(Some(IdentifierExpression(vRef)))
+        let e3 = IdentifierExpression({Identifier = "c"})
+        ReturnStatement (Some e3)
+    ]
+    let mainDecl = FunctionDeclaration(Int, "main", parameters, (localDefs, mainStatements))
+
+    let program : Declaration list = [
+        mainDecl
+    ]
+
+    let sa = SemanticAnalysis.analyze program
+    let builder = ILBuilder(sa)
+    let theClass = builder.BuildClass program
+
+    // emit the symbolic source
+    let ilSrc = theClass.ToString()
+    printfn $"IL source: {ilSrc}"
+
+    // emit the IL code
+    let assemblyName = "DemoAssembly"
+    let assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(AssemblyName(assemblyName), AssemblyBuilderAccess.Run)
+    let moduleBuilder = assemblyBuilder.DefineDynamicModule(assemblyName)
+    let codeGen = CodeGenerator(moduleBuilder,theClass,"DemoModule")
+    let (compiledType, entryPoint) = codeGen.GenerateType()
+    let instance = Activator.CreateInstance(compiledType)
+
+    // call entry point and pass in arguments
+    let result = entryPoint.Invoke(instance, [| box 1; box 2 |])
+    // show result
+    printfn $"Result: {result}"
     0

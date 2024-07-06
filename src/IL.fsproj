@@ -8,6 +8,7 @@
     <Compile Include="Ast.fs" />
     <Compile Include="SemanticAnalysis.fs" />
     <Compile Include="IL.fs" />
+    <Compile Include="CodeGenerator.fs" />
     <Compile Include="ILBuilder.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>

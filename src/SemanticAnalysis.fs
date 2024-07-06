@@ -294,6 +294,8 @@ type SemanticAnalysisResult =
         ExpressionTypes : ExpressionTypeDictionary;
     }
 
+/// Build a function and symbol table for the program
+/// Build an expression type dictionary for the program
 let analyze program =
     let symbolTable   = new SymbolTable(program)
     let functionTable = new FunctionTable(program)
