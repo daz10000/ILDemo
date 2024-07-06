@@ -66,8 +66,7 @@ let main1 argv =
 
 open IL.Ast
 
-[<EntryPoint>]
-let main argv =
+let program1() =
     printfn "Build a simple program"
 
     // pieces needed for a main function
@@ -114,6 +113,74 @@ let main argv =
     let program : Declaration list = [
         mainDecl
     ]
+    program
+
+let program2() =
+    // -----------------------------------------
+    // Demo a static global variable and two functions
+    // -----------------------------------------
+    // one that can set it and another than can use it and add one to it
+    // roughly equivalent to
+    // -----------------------------------------
+    // let mutable global1 = 0
+    // let setGlobal1() = global1 <- 1
+    // let getGlobal1AndAdd1() = global1 + 1
+    // let main() = setGlobal1(); let x = getGlobal1AndAdd1(); return x
+    // -----------------------------------------
+
+    printfn "program2: Build a simple program"
+
+    let globalStatic1 = Declaration.StaticVariableDeclaration(ScalarVariableDeclaration(Int, "global1"))
+
+    let setGlobal1Statements : Statement list = [
+        // global1 = 1
+        let e = Expression(ScalarAssignmentExpression({Identifier = "global1"}, LiteralExpression(Literal.IntLiteral 1)))
+        ExpressionStatement(e)
+    ]
+
+    let getGlobal1AndAdd1Statements : Statement list = [
+        // return global1 + 1
+        let e = BinaryExpression(IdentifierExpression({Identifier = "global1"}), Add, LiteralExpression(Literal.IntLiteral 1))
+        ReturnStatement(Some e)
+    ]
+
+
+    let setGlobal1 = FunctionDeclaration(Void, "setGlobal1", [], ([], setGlobal1Statements))
+
+    let getGlobal1AndAdd1 = FunctionDeclaration(Int, "getGlobal1AndAdd1", [], ([], getGlobal1AndAdd1Statements))
+
+    let mainStatements = [
+        // call setGlobal1()
+        let e = FunctionCallExpression("setGlobal1", [])
+        ExpressionStatement(Expression(e))
+
+        // let x = getGlobal1AndAdd1()
+        let e2 = FunctionCallExpression("getGlobal1AndAdd1", [])
+        let vRef = {Identifier = "x"}
+        let e3 = Expression(ScalarAssignmentExpression(vRef, e2))
+        ExpressionStatement(e3)
+
+        // return x
+        let e4 = IdentifierExpression({Identifier = "x"})
+        ReturnStatement(Some e4)
+    ]
+    let mainLocals : LocalDeclarations = [ ScalarVariableDeclaration(Int, "x")]
+
+    let mainDecl = FunctionDeclaration(Int, "main", [], (mainLocals, mainStatements))
+
+    // Overall program is just our main for now
+    let program : Declaration list = [
+        globalStatic1 // static var
+        setGlobal1 // func to set
+        getGlobal1AndAdd1 // func to get and add
+        mainDecl
+    ]
+    program
+
+
+[<EntryPoint>]
+let main argv =
+    let program = program2()
 
     // Incantations to analyze, build and emit the IL code
     let sa = SemanticAnalysis.analyze program
@@ -136,7 +203,10 @@ let main argv =
     // ------------------------------------------------------
     // call entry point and pass in arguments
     // ------------------------------------------------------
-    let result = entryPoint.Invoke(instance, [| box 1; box 2 |])
+
+    // program 1
+    //let result = entryPoint.Invoke(instance, [| box 1; box 2 |])
+    let result = entryPoint.Invoke(instance, [| |])
     // show result
     printfn $"Result: {result}"
     0
